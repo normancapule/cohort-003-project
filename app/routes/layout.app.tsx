@@ -5,26 +5,45 @@ import { DevUI } from "~/components/dev-ui";
 import { Toaster } from "sonner";
 import { getAllUsers, getUserById } from "~/services/userService";
 import { getCurrentUserId } from "~/lib/session";
+import { getRecentlyProgressedCourses, calculateProgress, getCompletedLessonCount, getTotalLessonCount } from "~/services/progressService";
 
 export async function loader({ request }: Route.LoaderArgs) {
   const users = getAllUsers();
   const currentUserId = await getCurrentUserId(request);
   const currentUser = currentUserId ? getUserById(currentUserId) : null;
 
+  const recentCourses = currentUserId
+    ? getRecentlyProgressedCourses(currentUserId).map((course) => {
+        const completedLessons = getCompletedLessonCount(currentUserId, course.courseId);
+        const totalLessons = getTotalLessonCount(course.courseId);
+        const progress = calculateProgress(currentUserId, course.courseId, false, false);
+        return {
+          courseId: course.courseId,
+          title: course.courseTitle,
+          slug: course.courseSlug,
+          coverImageUrl: course.coverImageUrl,
+          completedLessons,
+          totalLessons,
+          progress,
+        };
+      })
+    : [];
+
   return {
     users: users.map((u) => ({ id: u.id, name: u.name, role: u.role })),
     currentUser: currentUser
       ? { id: currentUser.id, name: currentUser.name, role: currentUser.role, avatarUrl: currentUser.avatarUrl ?? null }
       : null,
+    recentCourses,
   };
 }
 
 export default function AppLayout({ loaderData }: Route.ComponentProps) {
-  const { users, currentUser } = loaderData;
+  const { users, currentUser, recentCourses } = loaderData;
 
   return (
     <div className="flex h-screen overflow-hidden">
-      <Sidebar currentUser={currentUser} />
+      <Sidebar currentUser={currentUser} recentCourses={recentCourses} />
       <main className="flex-1 overflow-y-auto">
         <Outlet />
       </main>

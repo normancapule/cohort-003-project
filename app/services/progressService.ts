@@ -1,9 +1,10 @@
-import { eq, and, or, sql } from "drizzle-orm";
+import { eq, and, or, sql, desc } from "drizzle-orm";
 import { db } from "~/db";
 import {
   lessonProgress,
   lessons,
   modules,
+  courses,
   enrollments,
   LessonProgressStatus,
 } from "~/db/schema";
@@ -266,4 +267,24 @@ export function getNextIncompleteLesson(userId: number, courseId: number) {
   }
 
   return null;
+}
+
+export function getRecentlyProgressedCourses(userId: number, limit: number = 3) {
+  return db
+    .select({
+      courseId: courses.id,
+      courseTitle: courses.title,
+      courseSlug: courses.slug,
+      coverImageUrl: courses.coverImageUrl,
+      lastActivityId: sql<number>`max(${lessonProgress.id})`,
+    })
+    .from(lessonProgress)
+    .innerJoin(lessons, eq(lessonProgress.lessonId, lessons.id))
+    .innerJoin(modules, eq(lessons.moduleId, modules.id))
+    .innerJoin(courses, eq(modules.courseId, courses.id))
+    .where(eq(lessonProgress.userId, userId))
+    .groupBy(courses.id)
+    .orderBy(desc(sql`max(${lessonProgress.id})`))
+    .limit(limit)
+    .all();
 }

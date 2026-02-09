@@ -21,8 +21,19 @@ interface CurrentUser {
   avatarUrl: string | null;
 }
 
+interface RecentCourse {
+  courseId: number;
+  title: string;
+  slug: string;
+  coverImageUrl: string | null;
+  completedLessons: number;
+  totalLessons: number;
+  progress: number;
+}
+
 interface SidebarProps {
   currentUser: CurrentUser | null;
+  recentCourses?: RecentCourse[];
 }
 
 interface NavItem {
@@ -96,7 +107,7 @@ function UserAvatar({ name, avatarUrl }: { name: string; avatarUrl: string | nul
   );
 }
 
-export function Sidebar({ currentUser }: SidebarProps) {
+export function Sidebar({ currentUser, recentCourses = [] }: SidebarProps) {
   const currentUserRole = currentUser?.role ?? null;
   const [isDark, setIsDark] = useState(false);
 
@@ -140,6 +151,43 @@ export function Sidebar({ currentUser }: SidebarProps) {
           </NavLink>
         ))}
       </nav>
+
+      {recentCourses.length > 0 && (
+        <div className="border-t border-sidebar-border p-3">
+          <div className="mb-2 px-3 text-xs font-semibold uppercase tracking-wider text-sidebar-foreground/50">
+            Recent Courses
+          </div>
+          <div className="space-y-1">
+            {recentCourses.map((course) => (
+              <NavLink
+                key={course.courseId}
+                to={`/courses/${course.slug}`}
+                className={({ isActive }) =>
+                  cn(
+                    "block rounded-md px-3 py-2 transition-colors",
+                    isActive
+                      ? "bg-sidebar-accent text-sidebar-accent-foreground"
+                      : "text-sidebar-foreground/70 hover:bg-sidebar-accent hover:text-sidebar-accent-foreground"
+                  )
+                }
+              >
+                <div className="truncate text-sm font-medium">{course.title}</div>
+                <div className="mt-1 flex items-center gap-2">
+                  <div className="h-1.5 flex-1 rounded-full bg-sidebar-accent">
+                    <div
+                      className="h-1.5 rounded-full bg-primary"
+                      style={{ width: `${course.progress}%` }}
+                    />
+                  </div>
+                  <span className="shrink-0 text-xs text-sidebar-foreground/50">
+                    {course.progress}%
+                  </span>
+                </div>
+              </NavLink>
+            ))}
+          </div>
+        </div>
+      )}
 
       <div className="border-t border-sidebar-border p-3 space-y-1">
         <button
