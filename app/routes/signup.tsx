@@ -1,12 +1,24 @@
 import { Form, Link, useActionData, useNavigation } from "react-router";
 import { redirect, data } from "react-router";
+import { z } from "zod";
 import type { Route } from "./+types/signup";
 import { getUserByEmail, createUser } from "~/services/userService";
 import { UserRole } from "~/db/schema";
 import { setCurrentUserId, getCurrentUserId } from "~/lib/session";
+import { parseFormData } from "~/lib/validation";
 import { Button } from "~/components/ui/button";
 import { Input } from "~/components/ui/input";
 import { Card, CardContent, CardHeader } from "~/components/ui/card";
+
+const signupSchema = z.object({
+  name: z.string().trim().min(1, "Name is required."),
+  email: z
+    .string()
+    .trim()
+    .toLowerCase()
+    .min(1, "Email is required.")
+    .email("Please enter a valid email address."),
+});
 
 export function meta() {
   return [
@@ -25,27 +37,22 @@ export async function loader({ request }: Route.LoaderArgs) {
 
 export async function action({ request }: Route.ActionArgs) {
   const formData = await request.formData();
-  const name = (formData.get("name") as string)?.trim();
-  const email = (formData.get("email") as string)?.trim().toLowerCase();
+  const parsed = parseFormData(formData, signupSchema);
 
-  const errors: { name?: string; email?: string } = {};
-
-  if (!name) {
-    errors.name = "Name is required.";
-  }
-
-  if (!email) {
-    errors.email = "Email is required.";
-  } else if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) {
-    errors.email = "Please enter a valid email address.";
-  }
-
-  if (Object.keys(errors).length > 0) {
+  if (!parsed.success) {
     return data(
-      { errors, values: { name: name ?? "", email: email ?? "" } },
+      {
+        errors: parsed.errors,
+        values: {
+          name: String(formData.get("name") ?? ""),
+          email: String(formData.get("email") ?? ""),
+        },
+      },
       { status: 400 }
     );
   }
+
+  const { name, email } = parsed.data;
 
   // If email already exists, silently log them in
   const existingUser = getUserByEmail(email);
