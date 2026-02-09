@@ -32,3 +32,29 @@ export function parseFormData<T extends z.ZodType>(
 
   return { success: false, errors };
 }
+
+/**
+ * Parses a JSON request body with a Zod schema.
+ * Returns either the parsed data or a field-error map (first error per field).
+ */
+export async function parseJsonBody<T extends z.ZodType>(
+  request: Request,
+  schema: T
+): Promise<ParseResult<z.infer<T>>> {
+  const raw = await request.json();
+  const result = schema.safeParse(raw);
+
+  if (result.success) {
+    return { success: true, data: result.data };
+  }
+
+  const fieldErrors = result.error.flatten().fieldErrors;
+  const errors: Record<string, string> = {};
+  for (const [key, messages] of Object.entries(fieldErrors)) {
+    if (messages && messages.length > 0) {
+      errors[key] = messages[0];
+    }
+  }
+
+  return { success: false, errors };
+}
