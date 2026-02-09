@@ -478,7 +478,14 @@ function CourseContent({
           {course.modules.map((mod) => (
             <Card key={mod.id}>
               <CardHeader>
-                <h3 className="font-semibold">{mod.title}</h3>
+                <h3 className="font-semibold">
+                  <Link
+                    to={`/courses/${course.slug}/${mod.id}`}
+                    className="hover:underline"
+                  >
+                    {mod.title}
+                  </Link>
+                </h3>
                 <p className="text-sm text-muted-foreground">
                   {mod.lessons.length} lessons
                 </p>

@@ -2,7 +2,10 @@ import { useState, useEffect, useCallback } from "react";
 import { Link, useFetcher, useNavigate } from "react-router";
 import { toast } from "sonner";
 import type { Route } from "./+types/courses.$slug.lessons.$lessonId";
-import { getCourseBySlug, getCourseWithDetails } from "~/services/courseService";
+import {
+  getCourseBySlug,
+  getCourseWithDetails,
+} from "~/services/courseService";
 import { getLessonById } from "~/services/lessonService";
 import { getModuleById } from "~/services/moduleService";
 import { getCurrentUserId } from "~/lib/session";
@@ -17,7 +20,11 @@ import {
   getLastWatchPosition,
   calculateWatchProgress,
 } from "~/services/videoTrackingService";
-import { getQuizByLessonId, getQuizWithQuestions, getBestAttempt } from "~/services/quizService";
+import {
+  getQuizByLessonId,
+  getQuizWithQuestions,
+  getBestAttempt,
+} from "~/services/quizService";
 import { computeResult } from "~/services/quizScoringService";
 import { LessonProgressStatus } from "~/db/schema";
 import { Button } from "~/components/ui/button";
@@ -61,9 +68,7 @@ const markCompleteSchema = z.object({
 export function meta({ data: loaderData }: Route.MetaArgs) {
   const title = loaderData?.lesson?.title ?? "Lesson";
   const courseTitle = loaderData?.course?.title ?? "Course";
-  return [
-    { title: `${title} — ${courseTitle} — Cadence` },
-  ];
+  return [{ title: `${title} — ${courseTitle} — Cadence` }];
 }
 
 type FlatLesson = {
@@ -144,7 +149,10 @@ export async function loader({ params, request }: Route.LoaderArgs) {
       lessonStatus = progress?.status ?? null;
 
       // Get progress for all lessons in course (for curriculum sidebar)
-      const progressRecords = getLessonProgressForCourse(currentUserId, course.id);
+      const progressRecords = getLessonProgressForCourse(
+        currentUserId,
+        course.id
+      );
       for (const record of progressRecords) {
         lessonProgressMap[record.lessonId] = record.status;
       }
@@ -193,9 +201,7 @@ export async function loader({ params, request }: Route.LoaderArgs) {
   const currentIndex = allLessons.findIndex((l) => l.id === lessonId);
   const prevLesson = currentIndex > 0 ? allLessons[currentIndex - 1] : null;
   const nextLesson =
-    currentIndex < allLessons.length - 1
-      ? allLessons[currentIndex + 1]
-      : null;
+    currentIndex < allLessons.length - 1 ? allLessons[currentIndex + 1] : null;
 
   // Check for quiz attached to this lesson
   const quizRecord = getQuizByLessonId(lessonId);
@@ -336,13 +342,19 @@ function useAutoplay() {
   useEffect(() => {
     try {
       setEnabled(localStorage.getItem(AUTOPLAY_KEY) === "true");
-    } catch { /* silently fail */ }
+    } catch {
+      /* silently fail */
+    }
   }, []);
 
   const toggle = useCallback(() => {
     setEnabled((prev) => {
       const next = !prev;
-      try { localStorage.setItem(AUTOPLAY_KEY, String(next)); } catch { /* silently fail */ }
+      try {
+        localStorage.setItem(AUTOPLAY_KEY, String(next));
+      } catch {
+        /* silently fail */
+      }
       return next;
     });
   }, []);
@@ -377,13 +389,13 @@ export default function LessonViewer({ loaderData }: Route.ComponentProps) {
   const navigate = useNavigate();
 
   const isMarking =
-    fetcher.state !== "idle" && fetcher.formData?.get("intent") === "mark-complete";
+    fetcher.state !== "idle" &&
+    fetcher.formData?.get("intent") === "mark-complete";
 
   const justCompleted = fetcher.data?.success;
 
   const isCompleted =
-    lessonStatus === LessonProgressStatus.Completed ||
-    justCompleted;
+    lessonStatus === LessonProgressStatus.Completed || justCompleted;
 
   // Navigate to next lesson after marking complete
   useEffect(() => {
@@ -397,10 +409,12 @@ export default function LessonViewer({ loaderData }: Route.ComponentProps) {
 
   if (pppBlocked) {
     const purchaseCountryName = pppPurchaseCountry
-      ? COUNTRIES.find((c) => c.code === pppPurchaseCountry)?.name ?? pppPurchaseCountry
+      ? (COUNTRIES.find((c) => c.code === pppPurchaseCountry)?.name ??
+        pppPurchaseCountry)
       : "your original country";
     const currentCountryName = pppBlockedCountry
-      ? COUNTRIES.find((c) => c.code === pppBlockedCountry)?.name ?? pppBlockedCountry
+      ? (COUNTRIES.find((c) => c.code === pppBlockedCountry)?.name ??
+        pppBlockedCountry)
       : "a different country";
 
     return (
@@ -410,8 +424,8 @@ export default function LessonViewer({ loaderData }: Route.ComponentProps) {
           <h1 className="mb-3 text-2xl font-bold">Access Restricted</h1>
           <p className="mb-4 text-muted-foreground">
             You purchased this course with a Purchasing Power Parity discount
-            while in <strong>{purchaseCountryName}</strong>, but you're currently
-            accessing from <strong>{currentCountryName}</strong>.
+            while in <strong>{purchaseCountryName}</strong>, but you're
+            currently accessing from <strong>{currentCountryName}</strong>.
           </p>
           <p className="mb-6 text-sm text-muted-foreground">
             PPP-discounted courses can only be accessed from the country where
@@ -443,185 +457,189 @@ export default function LessonViewer({ loaderData }: Route.ComponentProps) {
       />
 
       <div className="flex-1 p-6 lg:p-8">
-      {/* Breadcrumb */}
-      <nav className="mb-6 text-sm text-muted-foreground">
-        <Link to="/courses" className="hover:text-foreground">
-          Courses
-        </Link>
-        <span className="mx-2">/</span>
-        <Link to={`/courses/${course.slug}`} className="hover:text-foreground">
-          {course.title}
-        </Link>
-        <span className="mx-2">/</span>
-        <span className="text-muted-foreground">{mod.title}</span>
-        <span className="mx-2">/</span>
-        <span className="text-foreground">{lesson.title}</span>
-      </nav>
+        {/* Breadcrumb */}
+        <nav className="mb-6 text-sm text-muted-foreground">
+          <Link to="/courses" className="hover:text-foreground">
+            Courses
+          </Link>
+          <span className="mx-2">/</span>
+          <Link
+            to={`/courses/${course.slug}`}
+            className="hover:text-foreground"
+          >
+            {course.title}
+          </Link>
+          <span className="mx-2">/</span>
+          <Link
+            to={`/courses/${course.slug}/${mod.id}`}
+            className="hover:text-foreground"
+          >
+            {mod.title}
+          </Link>
+          <span className="mx-2">/</span>
+          <span className="text-foreground">{lesson.title}</span>
+        </nav>
 
-      <div className="mx-auto max-w-4xl">
-        {/* Lesson Title */}
-        <h1 className="mb-2 text-3xl font-bold">{lesson.title}</h1>
-        <div className="mb-6 flex items-center gap-3">
-          {lesson.durationMinutes && (
-            <div className="flex items-center gap-1 text-sm text-muted-foreground">
-              <Clock className="size-4" />
-              {formatDuration(lesson.durationMinutes, true, false, false)}
-            </div>
-          )}
-          {lesson.githubRepoUrl && (
-            <a
-              href={lesson.githubRepoUrl}
-              target="_blank"
-              rel="noopener noreferrer"
-            >
-              <Button variant="outline" size="sm">
-                <Github className="mr-1.5 size-4" />
-                Open Code
-              </Button>
-            </a>
-          )}
-        </div>
-
-        {/* YouTube Video */}
-        {lesson.videoUrl && (
-          <YouTubePlayer
-            videoUrl={lesson.videoUrl}
-            lessonId={lesson.id}
-            title={lesson.title}
-            startPosition={lastWatchPosition}
-            durationMinutes={lesson.durationMinutes}
-            watchProgress={watchProgress}
-            trackingEnabled={enrolled && !!currentUserId}
-            autoplay={autoplay}
-            onToggleAutoplay={toggleAutoplay}
-          />
-        )}
-
-        {/* Lesson Content */}
-        {contentHtml && (
-          <div
-            className="prose prose-neutral dark:prose-invert mb-8 max-w-none"
-            dangerouslySetInnerHTML={{ __html: contentHtml }}
-          />
-        )}
-
-        {!contentHtml && !lesson.videoUrl && (
-          <Card className="mb-8">
-            <CardContent className="py-12 text-center text-muted-foreground">
-              No content has been added to this lesson yet.
-            </CardContent>
-          </Card>
-        )}
-
-        {/* Quiz Section */}
-        {quiz && enrolled && currentUserId && (
-          <QuizSection
-            quiz={quiz}
-            bestAttempt={bestAttempt}
-            quizResult={quizResult}
-            quizFetcher={quizFetcher}
-            isSubmitting={isSubmittingQuiz}
-          />
-        )}
-
-        {/* Mark Complete / Up Next */}
-        {enrolled && currentUserId && (
-          <div className="mb-8">
-            {isCompleted ? (
-              <div className="flex items-center gap-3">
-                <div className="flex items-center gap-2 text-green-600">
-                  <CheckCircle2 className="size-5" />
-                  <span className="font-medium">Lesson completed</span>
-                </div>
-                {nextLesson && (
-                  <Link to={`/courses/${course.slug}/lessons/${nextLesson.id}`}>
-                    <Button variant="outline" size="sm">
-                      Up next: {nextLesson.title}
-                      <ChevronRight className="ml-1 size-4" />
-                    </Button>
-                  </Link>
-                )}
+        <div className="mx-auto max-w-4xl">
+          {/* Lesson Title */}
+          <h1 className="mb-2 text-3xl font-bold">{lesson.title}</h1>
+          <div className="mb-6 flex items-center gap-3">
+            {lesson.durationMinutes && (
+              <div className="flex items-center gap-1 text-sm text-muted-foreground">
+                <Clock className="size-4" />
+                {formatDuration(lesson.durationMinutes, true, false, false)}
               </div>
-            ) : nextLesson ? (
-              <fetcher.Form method="post">
-                <input type="hidden" name="intent" value="mark-complete" />
-                <Button disabled={isMarking}>
-                  {isMarking ? (
-                    "Completing..."
-                  ) : (
-                    <>
-                      Up next: {nextLesson.title}
-                      <ChevronRight className="ml-1 size-4" />
-                    </>
-                  )}
+            )}
+            {lesson.githubRepoUrl && (
+              <a
+                href={lesson.githubRepoUrl}
+                target="_blank"
+                rel="noopener noreferrer"
+              >
+                <Button variant="outline" size="sm">
+                  <Github className="mr-1.5 size-4" />
+                  Open Code
                 </Button>
-              </fetcher.Form>
-            ) : (
-              <fetcher.Form method="post">
-                <input type="hidden" name="intent" value="mark-complete" />
-                <Button disabled={isMarking}>
-                  <CheckCircle2 className="mr-2 size-4" />
-                  {isMarking ? "Marking..." : "Mark as Complete"}
-                </Button>
-              </fetcher.Form>
+              </a>
             )}
           </div>
-        )}
 
-        {/* Prev/Next Navigation */}
-        <div className="flex items-center justify-between border-t pt-6">
-          {prevLesson ? (
-            <Link
-              to={`/courses/${course.slug}/lessons/${prevLesson.id}`}
-              className="flex items-center gap-2 text-sm hover:text-foreground text-muted-foreground"
-            >
-              <ChevronLeft className="size-4" />
-              <div>
-                <div className="text-xs text-muted-foreground">
-                  Previous
-                </div>
-                <div className="font-medium text-foreground">
-                  {prevLesson.title}
-                </div>
-              </div>
-            </Link>
-          ) : (
-            <div />
+          {/* YouTube Video */}
+          {lesson.videoUrl && (
+            <YouTubePlayer
+              videoUrl={lesson.videoUrl}
+              lessonId={lesson.id}
+              title={lesson.title}
+              startPosition={lastWatchPosition}
+              durationMinutes={lesson.durationMinutes}
+              watchProgress={watchProgress}
+              trackingEnabled={enrolled && !!currentUserId}
+              autoplay={autoplay}
+              onToggleAutoplay={toggleAutoplay}
+            />
           )}
 
-          {nextLesson ? (
-            <Link
-              to={`/courses/${course.slug}/lessons/${nextLesson.id}`}
-              className="flex items-center gap-2 text-right text-sm hover:text-foreground text-muted-foreground"
-            >
-              <div>
-                <div className="text-xs text-muted-foreground">
-                  Next
-                </div>
-                <div className="font-medium text-foreground">
-                  {nextLesson.title}
-                </div>
-              </div>
-              <ChevronRight className="size-4" />
-            </Link>
-          ) : (
-            <Link
-              to={`/courses/${course.slug}`}
-              className="flex items-center gap-2 text-sm text-muted-foreground hover:text-foreground"
-            >
-              <div>
-                <div className="text-xs text-muted-foreground">
-                  Back to
-                </div>
-                <div className="font-medium text-foreground">
-                  {course.title}
-                </div>
-              </div>
-              <ChevronRight className="size-4" />
-            </Link>
+          {/* Lesson Content */}
+          {contentHtml && (
+            <div
+              className="prose prose-neutral dark:prose-invert mb-8 max-w-none"
+              dangerouslySetInnerHTML={{ __html: contentHtml }}
+            />
           )}
+
+          {!contentHtml && !lesson.videoUrl && (
+            <Card className="mb-8">
+              <CardContent className="py-12 text-center text-muted-foreground">
+                No content has been added to this lesson yet.
+              </CardContent>
+            </Card>
+          )}
+
+          {/* Quiz Section */}
+          {quiz && enrolled && currentUserId && (
+            <QuizSection
+              quiz={quiz}
+              bestAttempt={bestAttempt}
+              quizResult={quizResult}
+              quizFetcher={quizFetcher}
+              isSubmitting={isSubmittingQuiz}
+            />
+          )}
+
+          {/* Mark Complete / Up Next */}
+          {enrolled && currentUserId && (
+            <div className="mb-8">
+              {isCompleted ? (
+                <div className="flex items-center gap-3">
+                  <div className="flex items-center gap-2 text-green-600">
+                    <CheckCircle2 className="size-5" />
+                    <span className="font-medium">Lesson completed</span>
+                  </div>
+                  {nextLesson && (
+                    <Link
+                      to={`/courses/${course.slug}/lessons/${nextLesson.id}`}
+                    >
+                      <Button variant="outline" size="sm">
+                        Up next: {nextLesson.title}
+                        <ChevronRight className="ml-1 size-4" />
+                      </Button>
+                    </Link>
+                  )}
+                </div>
+              ) : nextLesson ? (
+                <fetcher.Form method="post">
+                  <input type="hidden" name="intent" value="mark-complete" />
+                  <Button disabled={isMarking}>
+                    {isMarking ? (
+                      "Completing..."
+                    ) : (
+                      <>
+                        Up next: {nextLesson.title}
+                        <ChevronRight className="ml-1 size-4" />
+                      </>
+                    )}
+                  </Button>
+                </fetcher.Form>
+              ) : (
+                <fetcher.Form method="post">
+                  <input type="hidden" name="intent" value="mark-complete" />
+                  <Button disabled={isMarking}>
+                    <CheckCircle2 className="mr-2 size-4" />
+                    {isMarking ? "Marking..." : "Mark as Complete"}
+                  </Button>
+                </fetcher.Form>
+              )}
+            </div>
+          )}
+
+          {/* Prev/Next Navigation */}
+          <div className="flex items-center justify-between border-t pt-6">
+            {prevLesson ? (
+              <Link
+                to={`/courses/${course.slug}/lessons/${prevLesson.id}`}
+                className="flex items-center gap-2 text-sm hover:text-foreground text-muted-foreground"
+              >
+                <ChevronLeft className="size-4" />
+                <div>
+                  <div className="text-xs text-muted-foreground">Previous</div>
+                  <div className="font-medium text-foreground">
+                    {prevLesson.title}
+                  </div>
+                </div>
+              </Link>
+            ) : (
+              <div />
+            )}
+
+            {nextLesson ? (
+              <Link
+                to={`/courses/${course.slug}/lessons/${nextLesson.id}`}
+                className="flex items-center gap-2 text-right text-sm hover:text-foreground text-muted-foreground"
+              >
+                <div>
+                  <div className="text-xs text-muted-foreground">Next</div>
+                  <div className="font-medium text-foreground">
+                    {nextLesson.title}
+                  </div>
+                </div>
+                <ChevronRight className="size-4" />
+              </Link>
+            ) : (
+              <Link
+                to={`/courses/${course.slug}`}
+                className="flex items-center gap-2 text-sm text-muted-foreground hover:text-foreground"
+              >
+                <div>
+                  <div className="text-xs text-muted-foreground">Back to</div>
+                  <div className="font-medium text-foreground">
+                    {course.title}
+                  </div>
+                </div>
+                <ChevronRight className="size-4" />
+              </Link>
+            )}
+          </div>
         </div>
-      </div>
       </div>
     </div>
   );
@@ -704,8 +722,10 @@ function CurriculumSidebar({
                     {mod.lessons.map((l) => {
                       const isCurrent = l.id === currentLessonId;
                       const status = lessonProgressMap[l.id];
-                      const isCompleted = status === LessonProgressStatus.Completed;
-                      const isInProgress = status === LessonProgressStatus.InProgress;
+                      const isCompleted =
+                        status === LessonProgressStatus.Completed;
+                      const isInProgress =
+                        status === LessonProgressStatus.InProgress;
 
                       return (
                         <li key={l.id}>
@@ -782,21 +802,29 @@ function QuizSection({
   quizFetcher: ReturnType<typeof useFetcher>;
   isSubmitting: boolean;
 }) {
-  const [selectedAnswers, setSelectedAnswers] = useState<Record<number, number>>({});
+  const [selectedAnswers, setSelectedAnswers] = useState<
+    Record<number, number>
+  >({});
   const [showQuiz, setShowQuiz] = useState(!bestAttempt?.passed);
   const [retaking, setRetaking] = useState(false);
 
   useEffect(() => {
     if (quizResult && !retaking) {
       if (quizResult.passed) {
-        toast.success(`Quiz passed! Score: ${Math.round(quizResult.score * 100)}%`);
+        toast.success(
+          `Quiz passed! Score: ${Math.round(quizResult.score * 100)}%`
+        );
       } else {
-        toast.error(`Quiz not passed. Score: ${Math.round(quizResult.score * 100)}%`);
+        toast.error(
+          `Quiz not passed. Score: ${Math.round(quizResult.score * 100)}%`
+        );
       }
     }
   }, [quizResult, retaking]);
 
-  const allAnswered = quiz.questions.every((q) => selectedAnswers[q.id] !== undefined);
+  const allAnswered = quiz.questions.every(
+    (q) => selectedAnswers[q.id] !== undefined
+  );
   const showResult = quizResult && !retaking;
 
   if (showResult) {
@@ -809,7 +837,9 @@ function QuizSection({
           </div>
 
           {/* Results summary */}
-          <div className={`mb-6 rounded-lg p-4 ${quizResult.passed ? "bg-green-50 dark:bg-green-950" : "bg-red-50 dark:bg-red-950"}`}>
+          <div
+            className={`mb-6 rounded-lg p-4 ${quizResult.passed ? "bg-green-50 dark:bg-green-950" : "bg-red-50 dark:bg-red-950"}`}
+          >
             <div className="flex items-center gap-3">
               {quizResult.passed ? (
                 <Trophy className="size-8 text-green-600" />
@@ -817,11 +847,15 @@ function QuizSection({
                 <XCircle className="size-8 text-red-600" />
               )}
               <div>
-                <p className={`text-lg font-semibold ${quizResult.passed ? "text-green-700 dark:text-green-400" : "text-red-700 dark:text-red-400"}`}>
+                <p
+                  className={`text-lg font-semibold ${quizResult.passed ? "text-green-700 dark:text-green-400" : "text-red-700 dark:text-red-400"}`}
+                >
                   {quizResult.passed ? "You passed!" : "Not quite — try again!"}
                 </p>
                 <p className="text-sm text-muted-foreground">
-                  Score: {quizResult.totalCorrect}/{quizResult.totalQuestions} ({Math.round(quizResult.score * 100)}%) — Grade: {quizResult.grade}
+                  Score: {quizResult.totalCorrect}/{quizResult.totalQuestions} (
+                  {Math.round(quizResult.score * 100)}%) — Grade:{" "}
+                  {quizResult.grade}
                 </p>
               </div>
             </div>
@@ -830,7 +864,9 @@ function QuizSection({
           {/* Per-question results */}
           <div className="space-y-4">
             {quiz.questions.map((question, qIndex) => {
-              const result = quizResult.questionResults.find((r) => r.questionId === question.id);
+              const result = quizResult.questionResults.find(
+                (r) => r.questionId === question.id
+              );
               return (
                 <div key={question.id} className="rounded-lg border p-4">
                   <div className="mb-2 flex items-start gap-2">
@@ -848,8 +884,12 @@ function QuizSection({
                       const isSelected = result?.selectedOptionId === option.id;
                       const isCorrect = result?.correctOptionId === option.id;
                       let className = "text-sm";
-                      if (isCorrect) className += " font-medium text-green-700 dark:text-green-400";
-                      else if (isSelected && !result?.correct) className += " text-red-600 dark:text-red-400 line-through";
+                      if (isCorrect)
+                        className +=
+                          " font-medium text-green-700 dark:text-green-400";
+                      else if (isSelected && !result?.correct)
+                        className +=
+                          " text-red-600 dark:text-red-400 line-through";
                       return (
                         <p key={option.id} className={className}>
                           {isCorrect ? "✓ " : isSelected ? "✗ " : "  "}
@@ -895,7 +935,11 @@ function QuizSection({
                 — Best score: {Math.round(bestAttempt.score * 100)}%
               </span>
             </div>
-            <Button variant="outline" size="sm" onClick={() => setShowQuiz(true)}>
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={() => setShowQuiz(true)}
+            >
               <RotateCcw className="mr-2 size-4" />
               Retake
             </Button>
@@ -913,7 +957,8 @@ function QuizSection({
           <h2 className="text-xl font-semibold">{quiz.title}</h2>
         </div>
         <p className="mb-6 text-sm text-muted-foreground">
-          Answer all questions and submit. Passing score: {Math.round(quiz.passingScore * 100)}%.
+          Answer all questions and submit. Passing score:{" "}
+          {Math.round(quiz.passingScore * 100)}%.
         </p>
 
         <quizFetcher.Form method="post" onSubmit={() => setRetaking(false)}>
@@ -976,10 +1021,14 @@ export function ErrorBoundary({ error }: Route.ErrorBoundaryProps) {
   if (isRouteErrorResponse(error)) {
     if (error.status === 404) {
       title = "Lesson not found";
-      message = "The lesson you're looking for doesn't exist or may have been removed.";
+      message =
+        "The lesson you're looking for doesn't exist or may have been removed.";
     } else if (error.status === 401) {
       title = "Sign in required";
-      message = typeof error.data === "string" ? error.data : "Please select a user from the DevUI panel.";
+      message =
+        typeof error.data === "string"
+          ? error.data
+          : "Please select a user from the DevUI panel.";
     } else {
       title = `Error ${error.status}`;
       message = typeof error.data === "string" ? error.data : error.statusText;
@@ -1004,4 +1053,3 @@ export function ErrorBoundary({ error }: Route.ErrorBoundaryProps) {
     </div>
   );
 }
-
