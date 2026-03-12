@@ -5,7 +5,7 @@
 ```
 <CommitMap>
   <Commit id="03.04.01">
-    My solution
+    My solution - built star ratings
   </Commit>
 </CommitMap>
 ```
