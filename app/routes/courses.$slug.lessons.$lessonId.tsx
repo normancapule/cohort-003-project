@@ -1,5 +1,5 @@
 import { useState, useEffect, useCallback } from "react";
-import { Link, useFetcher, useNavigate } from "react-router";
+import { Link, useFetcher } from "react-router";
 import { toast } from "sonner";
 import type { Route } from "./+types/courses.$slug.lessons.$lessonId";
 import {
@@ -26,7 +26,19 @@ import {
   getBestAttempt,
 } from "~/services/quizService";
 import { computeResult } from "~/services/quizScoringService";
-import { LessonProgressStatus } from "~/db/schema";
+import {
+  getCommentsForInstructor,
+  getCommentsForStudent,
+  type CommentRow,
+} from "~/services/lessonCommentService";
+import {
+  addComment,
+  getCommentById,
+  toggleHideComment,
+  toggleUpvoteComment,
+} from "~/services/lessonCommentService";
+import { getUserById } from "~/services/userService";
+import { LessonProgressStatus, UserRole } from "~/db/schema";
 import { Button } from "~/components/ui/button";
 import { Card, CardContent } from "~/components/ui/card";
 import {
@@ -49,6 +61,7 @@ import {
 import { cn, formatDuration } from "~/lib/utils";
 import { renderMarkdown } from "~/lib/markdown.server";
 import { YouTubePlayer } from "~/components/youtube-player";
+import { LessonComments } from "~/components/lesson-comments";
 import { data, isRouteErrorResponse } from "react-router";
 import { z } from "zod";
 import { resolveCountry } from "~/lib/country.server";
@@ -63,6 +76,22 @@ const lessonParamsSchema = z.object({
 
 const markCompleteSchema = z.object({
   intent: z.literal("mark-complete"),
+});
+
+const addCommentSchema = z.object({
+  intent: z.literal("add-comment"),
+  content: z.string().min(1, "Comment cannot be empty").max(2000, "Comment too long"),
+  parentCommentId: z.coerce.number().int().optional(),
+});
+
+const hideCommentSchema = z.object({
+  intent: z.literal("hide-comment"),
+  commentId: z.coerce.number().int(),
+});
+
+const upvoteCommentSchema = z.object({
+  intent: z.literal("upvote-comment"),
+  commentId: z.coerce.number().int(),
 });
 
 export function meta({ data: loaderData }: Route.MetaArgs) {
@@ -248,6 +277,25 @@ export async function loader({ params, request }: Route.LoaderArgs) {
     }
   }
 
+  // ── Comments ──
+  let comments: CommentRow[] = [];
+  let currentUserRole: UserRole | null = null;
+
+  if (currentUserId) {
+    const currentUser = getUserById(currentUserId);
+    currentUserRole = currentUser?.role ?? null;
+    const isInstructor =
+      currentUser?.role === UserRole.Instructor ||
+      currentUser?.role === UserRole.Admin;
+
+    if (isInstructor) {
+      comments = getCommentsForInstructor(lessonId, currentUserId);
+    } else if (enrolled) {
+      const completed = lessonStatus === LessonProgressStatus.Completed;
+      comments = getCommentsForStudent(lessonId, currentUserId, completed);
+    }
+  }
+
   return {
     course: {
       id: courseWithDetails.id,
@@ -281,6 +329,8 @@ export async function loader({ params, request }: Route.LoaderArgs) {
     pppBlocked,
     pppBlockedCountry,
     pppPurchaseCountry,
+    comments,
+    currentUserRole,
   };
 }
 
@@ -329,6 +379,74 @@ export async function action({ params, request }: Route.ActionArgs) {
     }
 
     return { quizResult: result };
+  }
+
+  if (intent === "add-comment") {
+    const currentUser = getUserById(currentUserId);
+    if (!currentUser) throw data("User not found", { status: 404 });
+
+    const isInstructor =
+      currentUser.role === UserRole.Instructor ||
+      currentUser.role === UserRole.Admin;
+
+    if (!isInstructor && !isUserEnrolled(currentUserId, course.id)) {
+      throw data("You must be enrolled to comment", { status: 403 });
+    }
+
+    const parsed = parseFormData(formData, addCommentSchema);
+    if (!parsed.success) {
+      return data({ errors: parsed.errors }, { status: 422 });
+    }
+
+    const { content, parentCommentId } = parsed.data;
+    addComment(lessonId, currentUserId, content, parentCommentId ?? null);
+    return { success: true, intent: "add-comment" as const };
+  }
+
+  if (intent === "hide-comment") {
+    const currentUser = getUserById(currentUserId);
+    if (
+      !currentUser ||
+      (currentUser.role !== UserRole.Instructor && currentUser.role !== UserRole.Admin)
+    ) {
+      throw data("Forbidden", { status: 403 });
+    }
+
+    const parsed = parseFormData(formData, hideCommentSchema);
+    if (!parsed.success) {
+      return data({ errors: parsed.errors }, { status: 422 });
+    }
+
+    const comment = getCommentById(parsed.data.commentId);
+    if (!comment || comment.lessonId !== lessonId) {
+      throw data("Comment not found", { status: 404 });
+    }
+
+    const result = toggleHideComment(parsed.data.commentId);
+    return { success: true, intent: "hide-comment" as const, isHidden: result.isHidden };
+  }
+
+  if (intent === "upvote-comment") {
+    const currentUser = getUserById(currentUserId);
+    if (
+      !currentUser ||
+      (currentUser.role !== UserRole.Instructor && currentUser.role !== UserRole.Admin)
+    ) {
+      throw data("Forbidden", { status: 403 });
+    }
+
+    const parsed = parseFormData(formData, upvoteCommentSchema);
+    if (!parsed.success) {
+      return data({ errors: parsed.errors }, { status: 422 });
+    }
+
+    const comment = getCommentById(parsed.data.commentId);
+    if (!comment || comment.lessonId !== lessonId) {
+      throw data("Comment not found", { status: 404 });
+    }
+
+    const result = toggleUpvoteComment(parsed.data.commentId, currentUserId);
+    return { success: true, intent: "upvote-comment" as const, ...result };
   }
 
   throw data("Invalid action", { status: 400 });
@@ -382,11 +500,12 @@ export default function LessonViewer({ loaderData }: Route.ComponentProps) {
     pppBlocked,
     pppBlockedCountry,
     pppPurchaseCountry,
+    comments,
+    currentUserRole,
   } = loaderData;
   const [autoplay, toggleAutoplay] = useAutoplay();
   const fetcher = useFetcher({ key: `mark-complete-${lesson.id}` });
   const quizFetcher = useFetcher({ key: `quiz-${lesson.id}` });
-  const navigate = useNavigate();
 
   const isMarking =
     fetcher.state !== "idle" &&
@@ -397,12 +516,6 @@ export default function LessonViewer({ loaderData }: Route.ComponentProps) {
   const isCompleted =
     lessonStatus === LessonProgressStatus.Completed || justCompleted;
 
-  // Navigate to next lesson after marking complete
-  useEffect(() => {
-    if (justCompleted && nextLesson) {
-      navigate(`/courses/${course.slug}/lessons/${nextLesson.id}`);
-    }
-  }, [justCompleted, nextLesson, course.slug, navigate]);
 
   const quizResult = quizFetcher.data?.quizResult ?? null;
   const isSubmittingQuiz = quizFetcher.state !== "idle";
@@ -567,19 +680,21 @@ export default function LessonViewer({ loaderData }: Route.ComponentProps) {
                   )}
                 </div>
               ) : nextLesson ? (
-                <fetcher.Form method="post">
-                  <input type="hidden" name="intent" value="mark-complete" />
-                  <Button disabled={isMarking}>
-                    {isMarking ? (
-                      "Completing..."
-                    ) : (
-                      <>
-                        Up next: {nextLesson.title}
-                        <ChevronRight className="ml-1 size-4" />
-                      </>
-                    )}
-                  </Button>
-                </fetcher.Form>
+                <div className="flex items-center gap-3">
+                  <fetcher.Form method="post">
+                    <input type="hidden" name="intent" value="mark-complete" />
+                    <Button disabled={isMarking}>
+                      <CheckCircle2 className="mr-2 size-4" />
+                      {isMarking ? "Marking..." : "Mark as Complete"}
+                    </Button>
+                  </fetcher.Form>
+                  <Link to={`/courses/${course.slug}/lessons/${nextLesson.id}`}>
+                    <Button variant="outline" disabled={isMarking}>
+                      Up next: {nextLesson.title}
+                      <ChevronRight className="ml-1 size-4" />
+                    </Button>
+                  </Link>
+                </div>
               ) : (
                 <fetcher.Form method="post">
                   <input type="hidden" name="intent" value="mark-complete" />
@@ -639,6 +754,21 @@ export default function LessonViewer({ loaderData }: Route.ComponentProps) {
               </Link>
             )}
           </div>
+
+          {/* Comments */}
+          {currentUserId &&
+            (enrolled ||
+              currentUserRole === UserRole.Instructor ||
+              currentUserRole === UserRole.Admin) && (
+              <LessonComments
+                comments={comments}
+                currentUserId={currentUserId}
+                currentUserRole={currentUserRole!}
+                lessonId={lesson.id}
+                lessonCompleted={isCompleted}
+                enrolled={enrolled}
+              />
+            )}
         </div>
       </div>
     </div>
