@@ -405,10 +405,7 @@ export async function action({ params, request }: Route.ActionArgs) {
 
   if (intent === "hide-comment") {
     const currentUser = getUserById(currentUserId);
-    if (
-      !currentUser ||
-      (currentUser.role !== UserRole.Instructor && currentUser.role !== UserRole.Admin)
-    ) {
+    if (!currentUser) {
       throw data("Forbidden", { status: 403 });
     }
 
@@ -420,6 +417,14 @@ export async function action({ params, request }: Route.ActionArgs) {
     const comment = getCommentById(parsed.data.commentId);
     if (!comment || comment.lessonId !== lessonId) {
       throw data("Comment not found", { status: 404 });
+    }
+
+    const isInstructor =
+      currentUser.role === UserRole.Instructor || currentUser.role === UserRole.Admin;
+    const isOwner = comment.userId === currentUserId;
+
+    if (!isInstructor && !isOwner) {
+      throw data("Forbidden", { status: 403 });
     }
 
     const result = toggleHideComment(parsed.data.commentId);

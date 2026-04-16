@@ -150,7 +150,7 @@ function CommentCard({
       <div
         className={cn(
           "rounded-lg border border-border bg-card p-4 space-y-2",
-          optimisticIsHidden && isInstructor && "opacity-60"
+          optimisticIsHidden && (isInstructor || comment.userId === currentUserId) && "opacity-60"
         )}
       >
         {/* Author row */}
@@ -162,22 +162,28 @@ function CommentCard({
               Instructor
             </span>
           )}
-          {optimisticIsHidden && isInstructor && (
+          {optimisticIsHidden && (isInstructor || comment.userId === currentUserId) && (
             <span className="flex items-center gap-1 rounded-full bg-muted px-2 py-0.5 text-xs text-muted-foreground">
               <EyeOff className="size-3" />
-              Hidden from students
+              {comment.userId === currentUserId ? "Hidden by you" : "Hidden from students"}
             </span>
           )}
           <span className="ml-auto text-xs text-muted-foreground">{formattedDate}</span>
         </div>
 
         {/* Content */}
-        <p className="text-sm leading-relaxed whitespace-pre-wrap">{comment.content}</p>
+        {optimisticIsHidden ? (
+          <p className="text-sm italic text-muted-foreground">
+            {comment.userId === currentUserId ? "Hidden by you" : "Hidden comment"}
+          </p>
+        ) : (
+          <p className="text-sm leading-relaxed whitespace-pre-wrap">{comment.content}</p>
+        )}
 
         {/* Action row */}
         <div className="flex items-center gap-1 pt-1">
-          {/* Upvote — instructors only */}
-          {isInstructor && (
+          {/* Upvote — instructors only, visible comments only */}
+          {isInstructor && !optimisticIsHidden && (
             <upvoteFetcher.Form method="post">
               <input type="hidden" name="intent" value="upvote-comment" />
               <input type="hidden" name="commentId" value={String(comment.id)} />
@@ -196,8 +202,8 @@ function CommentCard({
             </upvoteFetcher.Form>
           )}
 
-          {/* Hide/Unhide — instructors only */}
-          {isInstructor && (
+          {/* Hide/Unhide — instructors or comment owner */}
+          {(isInstructor || comment.userId === currentUserId) && (
             <hideFetcher.Form method="post">
               <input type="hidden" name="intent" value="hide-comment" />
               <input type="hidden" name="commentId" value={String(comment.id)} />
@@ -216,8 +222,8 @@ function CommentCard({
             </hideFetcher.Form>
           )}
 
-          {/* Reply — enrolled students + instructors, top-level only */}
-          {!isReply && (
+          {/* Reply — visible comments only, top-level only */}
+          {!isReply && !optimisticIsHidden && (
             <Button
               type="button"
               variant="ghost"

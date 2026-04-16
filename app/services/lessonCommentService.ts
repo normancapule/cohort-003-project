@@ -194,7 +194,7 @@ export function getCommentsForStudent(
   const raw = db
     .select()
     .from(lessonComments)
-    .where(and(eq(lessonComments.lessonId, lessonId), eq(lessonComments.isHidden, false)))
+    .where(eq(lessonComments.lessonId, lessonId))
     .all()
     .filter((c) => lessonCompleted || c.userId === currentStudentId)
     .sort((a, b) => a.createdAt.localeCompare(b.createdAt));
